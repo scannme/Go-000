@@ -1,8 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 )
 
@@ -13,20 +16,18 @@ import (
 func main() {
 	if err := biz(); err != nil {
 		fmt.Printf("%+v", err)
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, sql.ErrNoRows) {
 			// 如果要根据特定的错误做特定的处理，使用errors.Is判断错误
 			// ...
 		} else {
 			return
 		}
 	}
-
-	//...
 }
 
 func biz() error {
-	userId := 10086
-	if _, err := Dao(userId); err != nil {
+	userID := 3
+	if _, err := Dao(userID); err != nil {
 		return err
 	}
 
@@ -34,19 +35,30 @@ func biz() error {
 	return nil
 }
 
+// User user information
 type User struct {
-	ID int
+	ID   int
+	name string
 	// ...
 }
 
-var ErrNotFound = errors.New("Not Found")
+// Dao  find user by id
+func Dao(id int) (string, error) {
 
-func Dao(id int) (*User, error) {
-	var user *User
-	// ... 根据id查询数据库
-	err := ErrNotFound
+	var name string
+
+	db, err := sql.Open("mysql",
+		"user:password@tcp(127.0.0.1:3306)/hello")
 	if err != nil {
-		return user, errors.Wrapf(err, "id: %v", id)
+		log.Fatal(err)
 	}
-	return user, nil
+	defer db.Close()
+
+	err = db.QueryRow("SELECT ... WHERE id=?", id).Scan(&name)
+
+	if sql.ErrNoRows == err {
+		return "", errors.Wrapf(err, "id: %v", id)
+	} else {
+		return name, nil
+	}
 }
